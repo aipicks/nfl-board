@@ -1,0 +1,13 @@
+.env
+.env.*
+data/cache/
+data/*.db
+__pycache__/
+*.pyc
+.claude/
+data/backups/
+old_deep_tmp.js
+
+# not for the public repo: third-party ESPN screenshots and the pick collage
+ESPN odds with picks.*
+Denver_Screenshots_Collage.*

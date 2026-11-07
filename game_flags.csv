@@ -1,0 +1,8 @@
+# season,week,team,weight,reason   -- weight multiplies that team's OFFENCE row in that game (the row also carries the opponent's defence)
+season,week,team,weight,reason
+2026,2,PIT,0.5,PIT at NE in 1.4 in of rain; Pittman out
+2026,2,NE,0.5,same heavy-rain game
+2026,3,HOU,0.7,Texans without Nico Collins and a starting guard
+2026,3,PIT,0.85,Bengals lost two DBs mid-game (Cook and J. Davis)
+2026,4,WAS,0.6,London neutral site; backup QB; Daniels McLaurin Cosmi Allegretti out; Mariota left early
+2026,4,IND,0.7,London neutral site; vs depleted WAS defence (Cross out Sainristil left)
