@@ -14,11 +14,11 @@
     "was": 1.1353
   },
   "MODEL_TRUST.margin": {
-    "value": 0.6,
-    "n": 82,
-    "updated": "2026-10-31",
-    "reason": "spread: outcome-vs-market on model-vs-market slope +4.65",
-    "was": 0.15
+    "value": 0.0,
+    "n": 186,
+    "updated": "2026-11-09",
+    "reason": "spread: outcome-vs-market on model-vs-market slope -0.63",
+    "was": 0.6
   },
   "MODEL_TRUST.total": {
     "value": 0.0,
