@@ -21,10 +21,10 @@
     "was": 0.6
   },
   "MODEL_TRUST.total": {
-    "value": 0.0,
-    "n": 147,
-    "updated": "2026-11-05",
-    "reason": "total: outcome-vs-market on model-vs-market slope -0.19",
-    "was": 0.0052
+    "value": 0.0911,
+    "n": 202,
+    "updated": "2026-11-12",
+    "reason": "total: outcome-vs-market on model-vs-market slope +0.18",
+    "was": 0.0
   }
 }
