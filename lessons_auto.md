@@ -13,3 +13,4 @@
 - 2026-11-05: MODEL_TRUST.total 0.0052 -> 0.0 (147 graded picks; total: outcome-vs-market on model-vs-market slope -0.19)
 - 2026-11-09: MODEL_TRUST.margin 0.6 -> 0.0 (186 graded picks; spread: outcome-vs-market on model-vs-market slope -0.63)
 - 2026-11-12: MODEL_TRUST.total 0.0 -> 0.0911 (202 graded picks; total: outcome-vs-market on model-vs-market slope +0.18)
+- 2026-11-15: MODEL_TRUST.total 0.0911 -> 0.1327 (204 graded picks; total: outcome-vs-market on model-vs-market slope +0.17)
