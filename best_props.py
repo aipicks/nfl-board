@@ -325,7 +325,22 @@ def _slot(g):
     return "sunday" if ko.weekday() == 6 and ko.hour < 19 else "standalone"
 
 
+CARD_BOOKS = {"fanduel", "draftkings", "betmgm", "espnbet"}   # Best Picks are bet in Ontario: no offshore prices (Bovada stays in the market consensus only)
+
+
+def _agrees(g, mk, o):
+    """The pick must follow our projection (lessons.md: picks follow the projected margin / total, not just the price)."""
+    if mk == "spread":
+        return (g["margin"] + o["line"] > 0) == (o["side"] == "home")    # stored line is the home team's
+    return (g["total"] > o["line"]) == (o["side"] == "over")
+
+
 def _game_pick(g, mk):
+    m = g["markets"].get(mk) or {}
+    opts = [o for o in (m.get("options") or []) if o["book"] in CARD_BOOKS and _agrees(g, mk, o)]
+    if not opts:
+        return None
+    g = dict(g, markets=dict(g["markets"], **{mk: dict(m, best=max(opts, key=lambda o: o["ev"]))}))
     for p in _game_bets(g):
         if p["market"] != mk:
             continue
@@ -371,7 +386,7 @@ def _card_props(props, deeps, gmap, model):
             continue
         for o in opts:
             yard = r["market"] in YARD_MKTS
-            if not (-115 if yard else -125) <= o["price"] <= 140 or o["line"] < MIN_OVER_LINE.get(r["market"], 0):
+            if o["book"] not in CARD_BOOKS or not (-115 if yard else -125) <= o["price"] <= 140 or o["line"] < MIN_OVER_LINE.get(r["market"], 0):
                 continue
             po = PC.p_over(model, r["market"], sum(mk[o["line"]]) / len(mk[o["line"]]), med8, o["line"])
             pside = po if o["side"] == "over" else 1 - po
@@ -421,7 +436,7 @@ def card(bp, games, tds, props=None, deeps=None, model=None) -> dict:
         gp = [p for p in (_game_pick(g, "spread"), _game_pick(g, "total")) if p]
         gp = max(gp, key=lambda p: p["ev"]) if gp else None
         td = None
-        best = sorted((t for t in tds if t["game_id"] == g["id"] and td_role(t)), key=lambda t: -(t["p_final"] - _implied(t["best_price"])))
+        best = sorted((t for t in tds if t["game_id"] == g["id"] and td_role(t) and t["best_book"] in CARD_BOOKS), key=lambda t: -(t["p_final"] - _implied(t["best_price"])))
         if best and best[0]["p_final"] - _implied(best[0]["best_price"]) >= TD_GATE["edge"]:
             t = best[0]
             td = {"player": t["player"], "pos": t["pos"], "team": t["team"], "opp": t["opp"], "book": t["best_book"], "price": t["best_price"], "p_final": t["p_final"],
