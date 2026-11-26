@@ -65,3 +65,6 @@ User asked for the top three tight ends most likely to score tomorrow against de
   every build from graded pre-kickoff props. Best Picks props need 4+ pts of edge vs the price (FIRM 6+). Walk-forward Best Picks
   replay: props 49-36, +11.4u. Small sample; the lean can vanish if books adjust. Re-check after each week settles.
 - research/prop_dataset.py, prop_signals.py, prop_unders.py hold the analysis.
+
+## 2026-11-26 Best Picks: Ontario books, follow the projection
+The Thanksgiving card had PHI +9 and two props priced at Bovada (offshore; the user bets in Ontario) and CHI -1 while the projection had DET by 5.6 (breaks the 2026-10 rule that picks follow the projection). Changed: `best_props.CARD_BOOKS` limits card prices to FanDuel/DraftKings/BetMGM/ESPN Bet (Bovada stays in the consensus); `_game_pick` only takes options that agree with the projected margin/total.
