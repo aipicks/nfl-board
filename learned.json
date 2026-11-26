@@ -7,11 +7,11 @@
     "was": 0.0695
   },
   "TD_LAMBDA_SCALE": {
-    "value": 1.2,
-    "n": 517,
-    "updated": "2026-10-31",
-    "reason": "anytime TD: predicted 0.256 vs actual 0.300",
-    "was": 1.1353
+    "value": 1.1489,
+    "n": 1827,
+    "updated": "2026-11-25",
+    "reason": "anytime TD: predicted 0.274 vs actual 0.260",
+    "was": 1.1788
   },
   "MODEL_TRUST.margin": {
     "value": 0.0,
@@ -21,10 +21,10 @@
     "was": 0.6
   },
   "MODEL_TRUST.total": {
-    "value": 0.4435,
-    "n": 240,
-    "updated": "2026-11-22",
-    "reason": "total: outcome-vs-market on model-vs-market slope +0.53",
-    "was": 0.3602
+    "value": 0.0976,
+    "n": 293,
+    "updated": "2026-11-25",
+    "reason": "total: outcome-vs-market on model-vs-market slope +0.11",
+    "was": 0.0845
   }
 }

@@ -142,7 +142,7 @@ def standouts(d: dict) -> list[dict]:
     for t, o in teams:
         inj = sorted([i for i in _injuries(d, t) if i["status"] in ("out", "doubtful", "questionable") and _importance(i) >= 40], key=lambda i: -_importance(i))[:5]
         for i in inj:
-            nxt = ", ".join(n["name"] for n in (i.get("next_up") or [])[:2])
+            nxt = ", ".join(n["name"] for n in (i.get("next_up") or [])[:2] if isinstance(n.get("name"), str))
             use = []
             if i.get("car"):
                 use.append(f"{i['car']} carries")

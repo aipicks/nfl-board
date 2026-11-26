@@ -40,20 +40,44 @@ function renderBest() {
   const gs = D.games.filter(g => D.bestprops.games[g.id]).sort((a, b) => BPS.sort === "conf" ? Math.max(0, ...Object.values(D.bestprops.games[b.id]).flat().map(p => p.p_final)) - Math.max(0, ...Object.values(D.bestprops.games[a.id]).flat().map(p => p.p_final)) : a.kickoff.localeCompare(b.kickoff));
   $("#bplist").innerHTML = gs.map(bpGame).join("");
 }
+function cpLab(l) { return `<span class="badge ${l === "FIRM" ? "g" : "y"}">${l}</span>`; }
+function cpProp(p) {
+  return `<div class="cp"><div class="cp1">${cpLab(p.label_card)} <b>${p.player}</b> <span class="xs mut">${p.pos} · ${p.team} ${p.home ? "vs" : "@"} ${p.opp}</span></div>
+    <div class="cp2"><b>${p.side.toUpperCase()} ${p.line} ${p.label}</b> <span class="mut">${BK[p.book]} ${price(p.price)}</span></div>
+    <div class="xs mut">Our chance ${(p.p_new * 100).toFixed(0)}% vs ${((p.p_new - p.edge) * 100).toFixed(0)}% priced in (edge +${(p.edge * 100).toFixed(1)} pts) · market ${(p.p_market * 100).toFixed(0)}% · ${p.side} hit ${p.hit_txt}</div>
+    <ul class="notes">${p.why.slice(0, 3).map(x => `<li>+ ${x}</li>`).join("")}${p.risk.slice(0, 2).map(x => `<li style="color:var(--y)">! ${x}</li>`).join("")}</ul></div>`;
+}
+function cpGame(p, g) {
+  return `<div class="cp"><div class="cp1">${cpLab(p.label_card)} <b>${p.pick}</b> <span class="xs mut">${p.market === "spread" ? "spread" : "total"} · ${g || p.game}</span></div>
+    <div class="cp2"><span class="mut">${BK[p.book]} ${price(p.price)}</span> <span class="xs mut">· EV ${p.ev >= 0 ? "+" : ""}${(p.ev * 100).toFixed(1)}%</span></div>
+    <ul class="notes">${p.why.map(x => `<li>+ ${x}</li>`).join("")}${p.risk.map(x => `<li style="color:var(--y)">! ${x}</li>`).join("")}</ul></div>`;
+}
+function cpTd(t) {
+  return `<div class="cp"><div class="cp1">${cpLab("LEAN")} <b>${t.player}</b> anytime TD <span class="xs mut">${t.pos} · ${t.team} vs ${t.opp}</span></div>
+    <div class="cp2"><span class="mut">${BK[t.book]} ${price(t.price)}</span> <span class="xs mut">· our chance ${(t.p_final * 100).toFixed(0)}% vs ${(t.implied * 100).toFixed(0)}% implied</span></div>
+    <div class="xs mut">${t.snap_pct}% of snaps · ${t.rz_pg} red-zone and ${t.gl_pg} goal-line touches a game · scored in ${t.td_games} of ${t.games} games. Touchdowns are high-variance.</div></div>`;
+}
 function initBest() {
-  const all = Object.entries(D.bestprops.games).flatMap(([gid, c]) => Object.values(c).flat());
-  const top = all.slice().sort((a, b) => b.p_final - a.p_final).slice(0, 8);
-  const nHigh = all.filter(p => p.p_final >= 0.62).length, nGood = all.filter(p => p.p_final >= 0.57 && p.p_final < 0.62).length;
-  const mn = D.bestprops.mnf;
-  const mnHtml = mn ? `<div class="card"><h2>Monday Night Football: 5 best bets</h2><p class="small">${mn.away} @ ${mn.home}, ${new Date(mn.kickoff).toLocaleString("en-US", {...ET, weekday: "short", hour: "numeric", minute: "2-digit"})} ET. Chosen from this game's best props, anytime TDs, spread and total, ranked by win chance after the ${Math.round(D.cfg.w.prop * 100)}/${Math.round((1 - D.cfg.w.prop) * 100)} model/market blend, one bet per player. None of this is proven yet; check the inactives before kickoff.</p>
-    ${mn.picks.map((p, i) => `<div class="xs mut" style="margin-top:8px">BET ${i + 1}</div>` + bpPickCard(p)).join("")}</div>` : "";
-  $("#bestroot").innerHTML = mnHtml + `<div class="card"><h2>Best props</h2><p class="small">For every game: our favourite <b>1 quarterback</b>, <b>2 wide receiver</b>, <b>2 running back</b> and <b>1 tight end</b> prop, using the real lines the books post, built from this season's games only plus the opposing defences (run defence, pass defence, and what they allow to that position), priced between <b>+120 and -140</b>. This is about which props we are <b>most confident will win</b>, not which have the most expected value. Each slot gets the best-supported prop (our model backs the side and the market does not strongly disagree); only if nothing qualifies do the filters relax, and those picks are flagged as weaker. Picks are ranked by win chance after blending ${Math.round(D.cfg.w.prop * 100)}% model / ${Math.round((1 - D.cfg.w.prop) * 100)}% market. Anytime TDs can fill a receiver, back or tight-end slot when the price is in range.</p>
-    <p class="xs mut">${all.length} picks across ${D.games.length} games: ${nHigh} high confidence (62%+), ${nGood} good (57-62%), the rest lean. The prop model has not yet been tested against real results, so even the best picks are around 55-63%, not locks. Every pick here is saved before kickoff and graded in Results under "Best props picks". Check Sunday's inactives before betting.</p></div>
-    <h3 class="dh3">Your watchlist, taken apart</h3>${D.bestprops.watch.map(bpWatch).join("")}
-    <h3 class="dh3">Most confident picks on the slate</h3><div class="tw"><table class="tbl"><thead><tr><th>Pick</th><th>Game</th><th>Price</th><th>Win chance</th></tr></thead><tbody>${top.map(p => `<tr><td class="lab"><b>${p.player}</b> <span class="xs mut">${p.pos}</span><br>${p.kind === "td" ? "anytime TD" : p.side.toUpperCase() + " " + p.line + " " + p.label}</td><td class="xs">${GNAME[p.game_id]}</td><td>${BK[p.book]} ${price(p.price)}</td><td><span class="chip ${p.conf_cls}">${(p.p_final * 100).toFixed(0)}%</span></td></tr>`).join("")}</tbody></table></div>
-    <div class="ctl"><select id="bpsort"><option value="time">Sort games: kickoff</option><option value="conf">Sort games: most confident first</option></select>
-    <span class="seg" id="bpslot"><button data-s="" class="on">All</button><button data-s="QB">QB</button><button data-s="WR">WR</button><button data-s="RB">RB</button><button data-s="TE">TE</button></span>
-    <label class="tg"><input type="checkbox" id="bponly"> Good or high confidence only</label></div><div id="bplist"></div>`;
+  const C = D.card || {sunday: null, standalone: []};
+  const kickTxt = iso => new Date(iso).toLocaleString("en-US", {...ET, weekday: "short", hour: "numeric", minute: "2-digit"});
+  const none = what => `<div class="mut small">No ${what} passed the rules this week.</div>`;
+  const prime = C.standalone.map(s => `<div class="game"><div class="gh"><h3>${s.away} @ ${s.home}</h3><span class="mut small">${kickTxt(s.kickoff)} ET · standalone game</span></div>
+    <h3 class="dh3">Player props</h3>${s.props.map(cpProp).join("") || none("prop")}
+    <h3 class="dh3">Game pick</h3>${s.game_pick ? cpGame(s.game_pick, `${s.away} @ ${s.home}`) : none("spread or total")}
+    ${s.td ? `<h3 class="dh3">Touchdown with value</h3>${cpTd(s.td)}` : ""}</div>`).join("");
+  const S = C.sunday;
+  const sun = S ? `<div class="game"><div class="gh"><h3>Sunday main slate</h3><span class="mut small">${S.n_games} games before 7 PM ET</span></div>
+    <h3 class="dh3">Player props (${S.props.length})</h3>${S.props.map(cpProp).join("") || none("prop")}
+    <h3 class="dh3">Spreads (${S.spreads.length})</h3>${S.spreads.map(p => cpGame(p)).join("") || none("spread")}
+    <h3 class="dh3">Totals (${S.totals.length})</h3>${S.totals.map(p => cpGame(p)).join("") || none("total")}</div>` : "";
+  $("#bestroot").innerHTML = `<div class="card"><h2>Best Picks</h2><p class="small">The short list we would actually play, chosen by fixed rules before kickoff. <b>Sunday main slate:</b> 8 to 12 player props (at most 2 per game), 3 spreads and 2 totals. <b>Standalone games</b> (Thursday, Friday, holidays, Sunday night, Monday night): 2 player props and 1 spread or total each, plus an anytime touchdown only when our chance beats the price by 3+ points. If fewer picks pass, fewer are shown; nothing is added to fill a quota.</p>
+    <p class="xs mut">Props need: a healthy starter with 5+ games this season, a real line (no receptions under 2.5, receiving yards under 25.5, rushing yards under 30.5, attempts under 10.5), a price of -115 or better on yardage (-125 on other props), and our chance beating the price's implied chance by 4+ points. FIRM = 6+ points of edge; LEAN = 4 to 6. Spreads and totals need +1% EV or more (FIRM at +3%); if our raw projection disagrees with the side, it is a LEAN at best. Paper picks, 1 unit each. The prop model is still being tested, so treat these as informed opinions, not locks.</p></div>
+    ${prime ? `<h3 class="dh3">Standalone and primetime games</h3>${prime}` : ""}${sun}
+    <details class="card"><summary><b>Every candidate by game</b> <span class="xs mut">(the long list these picks came from)</span></summary>
+      <div class="ctl"><select id="bpsort"><option value="time">Sort games: kickoff</option><option value="conf">Sort games: most confident first</option></select>
+      <span class="seg" id="bpslot"><button data-s="" class="on">All</button><button data-s="QB">QB</button><button data-s="WR">WR</button><button data-s="RB">RB</button><button data-s="TE">TE</button></span>
+      <label class="tg"><input type="checkbox" id="bponly"> Good or high confidence only</label></div><div id="bplist"></div>
+      ${D.bestprops.watch.length ? `<h3 class="dh3">Your watchlist</h3>${D.bestprops.watch.map(bpWatch).join("")}` : ""}</details>`;
   $("#bpsort").onchange = e => { BPS.sort = e.target.value; renderBest(); };
   $("#bponly").onchange = e => { BPS.only = e.target.checked; renderBest(); };
   document.querySelectorAll("#bpslot button").forEach(b => b.onclick = () => { document.querySelectorAll("#bpslot button").forEach(x => x.classList.remove("on")); b.classList.add("on"); BPS.slot = b.dataset.s; renderBest(); });

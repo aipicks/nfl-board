@@ -57,6 +57,7 @@ code{background:var(--card2);padding:1px 5px;border-radius:5px;font-size:12px}
 .y25{display:none!important}.show25 .y25{display:inline!important}.show25 .y25.blk{display:block!important}
 .tbl tr.grp td{font-weight:700;color:var(--acc);background:#16253b;padding:3px 6px;font-size:11px;letter-spacing:.05em}
 .dyn{padding-left:0;list-style:none}.dyn li{margin:6px 0;font-size:13px}.props td{font-size:11px}
+.cp{border-top:1px solid var(--line);padding:9px 0}.cp:first-of-type{border-top:0}.cp1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.cp2{margin:3px 0 2px;font-size:15px}
 </style>
 </head>
 <body>
@@ -72,16 +73,13 @@ code{background:var(--card2);padding:1px 5px;border-radius:5px;font-size:12px}
   <button data-t="injuries">Injuries</button>
   <button data-t="public">Public Betting</button>
   <button data-t="td">+EV TD Scorers</button>
-  <button data-t="props">Player Props</button>
-  <button data-t="best">Best Props</button>
-  <button data-t="te">TE TDs</button>
+  <button data-t="best">Best Picks</button>
   <button data-t="results">Results</button>
   <button data-t="how">How the model works</button>
 </nav>
 <main>
 <section id="t-games">
   <div id="top"></div>
-  <div id="glance"></div>
   <div class="ctl">
     <select id="sort"><option value="ev">Sort: best EV</option><option value="time">Sort: kickoff</option><option value="game">Sort: game</option></select>
     <select id="team"><option value="">All teams</option></select>
@@ -295,7 +293,7 @@ function how() {
 
 /*DEEPJS*/
 function init() {
-  header(); topPick(); glance();
+  header(); topPick();  // "Picks at a glance" removed 2026-11-25 (user: the all-games lean/coin-flip list isn't useful)
   const teams = [...new Set(D.games.flatMap(g => [g.home, g.away]))].sort();
   $("#team").innerHTML += teams.map(t => `<option>${t}</option>`).join("");
   $("#sort").onchange = e => { SEL.sort = e.target.value; renderGames(); };
@@ -316,5 +314,161 @@ function init() {
 }
 init();
 </script>
+<!-- theme:start -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* ===== Shared board theme (NBA / NFL / NHL). Deliberately dark-only: deep teal-black ground, turquoise accent, glass cards.
+   Source of truth: DAILY BOARDS/_shared/. Injected into each board's template by _shared/apply_theme.py — edit here, then re-apply. ===== */
+:root:root:root {
+  --t-bg: #051317; --t-bg2: #0a1f26;
+  --t-glass: rgba(13, 36, 43, .66); --t-glass2: rgba(19, 49, 57, .74); --t-glass3: rgba(26, 64, 73, .8);
+  --t-line: rgba(94, 234, 212, .12); --t-line2: rgba(94, 234, 212, .32);
+  --t-fg: #e3f2f0; --t-muted: #84a2a4; --t-acc: #2dd4bf; --t-acc2: #5eead4; --t-acc-ink: #032a27; --t-glow: rgba(45, 212, 191, .26);
+  --t-good: #4ade80; --t-good-bg: rgba(34, 197, 94, .16); --t-bad: #fb7185; --t-bad-bg: rgba(244, 63, 94, .16);
+  --t-warn: #facc15; --t-warn-bg: rgba(234, 179, 8, .15); --t-mid: #a7bcbd; --t-mid-bg: rgba(148, 178, 180, .12);
+  --t-head: "Outfit", "Segoe UI", system-ui, sans-serif; --t-body: "Inter", "Segoe UI", system-ui, sans-serif; --t-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --t-r: 14px; --t-r2: 10px;
+  color-scheme: dark;
+}
+html { background: var(--t-bg); }
+body { background: var(--t-bg) !important; color: var(--t-fg); font-family: var(--t-body); isolation: isolate; -webkit-font-smoothing: antialiased; }
+#tbg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(900px 520px at 78% -8%, rgba(45, 212, 191, .13), transparent 60%), radial-gradient(700px 480px at -6% 104%, rgba(14, 165, 233, .08), transparent 60%); }
+::selection { background: rgba(45, 212, 191, .35); }
+* { scrollbar-color: rgba(94, 234, 212, .25) transparent; }
+
+/* glass surfaces and pills shared by every board */
+.t-glass { background: var(--t-glass); border: 1px solid var(--t-line); border-radius: var(--t-r);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2); backdrop-filter: blur(10px) saturate(1.2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), 0 10px 30px rgba(0, 0, 0, .25); }
+.t-eyebrow { font: 600 11px var(--t-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--t-acc); }
+
+/* sidebar shell: each board's tab bar gets class t-nav and data-brand="..." from its own css; wide screens show it as a left rail */
+@media (min-width: 1100px) {
+  body.t-shell { padding-left: 272px !important; }
+  .t-nav { position: fixed !important; left: 0; top: 0; bottom: 0; width: 248px; margin: 0 !important; z-index: 20;
+    display: flex !important; flex-direction: column !important; gap: 3px !important; overflow-y: auto; overflow-x: hidden;
+    padding: calc(18px + env(safe-area-inset-top, 0px)) 14px 18px calc(14px + env(safe-area-inset-left, 0px)) !important;
+    background: rgba(6, 22, 27, .6); border: 0 !important; border-right: 1px solid var(--t-line) !important; border-radius: 0 !important;
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+  .t-nav::before { content: attr(data-brand); display: block; font: 800 21px/1.1 var(--t-head); letter-spacing: -.01em; color: var(--t-fg); padding: 4px 10px 16px; margin-bottom: 8px; border-bottom: 1px solid var(--t-line); }
+  .t-nav::after { content: "Paper trading \00B7  no guaranteed wins"; display: block; margin-top: auto; padding: 14px 10px 0; font: 500 11px var(--t-body); color: var(--t-muted); opacity: .8; }
+  .t-nav button, .t-nav .tab { width: 100%; text-align: left !important; justify-content: flex-start; border: 1px solid transparent !important; border-radius: var(--t-r2) !important;
+    padding: 9px 12px !important; margin: 0 !important; background: transparent !important; color: var(--t-muted) !important;
+    font: 500 14px var(--t-body) !important; letter-spacing: 0 !important; text-transform: none !important; display: flex; align-items: center; gap: 10px; }
+  .t-nav button::before, .t-nav .tab::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .45; flex: none; }
+  .t-nav button:hover, .t-nav .tab:hover { color: var(--t-fg) !important; background: rgba(94, 234, 212, .06) !important; }
+  .t-nav button[aria-selected="true"], .t-nav button.on, .t-nav .tab[aria-selected="true"], .t-nav .tab[aria-selected=true] {
+    color: var(--t-acc2) !important; background: rgba(45, 212, 191, .12) !important; border-color: var(--t-line2) !important; box-shadow: 0 0 18px var(--t-glow); }
+  .t-nav button[aria-selected="true"]::before, .t-nav button.on::before, .t-nav .tab[aria-selected="true"]::before { opacity: 1; box-shadow: 0 0 8px var(--t-acc); }
+}
+@media (max-width: 1099.98px) {
+  .t-nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; display: flex; gap: 6px !important; overflow-x: auto; flex-wrap: nowrap !important;
+    padding: 8px 2px !important; margin-bottom: 12px !important; border: 0 !important; background: rgba(5, 19, 23, .86); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+  .t-nav button, .t-nav .tab { flex: none; border: 1px solid var(--t-line) !important; border-radius: 999px !important; padding: 7px 14px !important; background: var(--t-glass) !important;
+    color: var(--t-muted) !important; font: 500 13px var(--t-body) !important; letter-spacing: 0 !important; text-transform: none !important; white-space: nowrap; }
+  .t-nav button[aria-selected="true"], .t-nav button.on, .t-nav .tab[aria-selected="true"], .t-nav .tab[aria-selected=true] {
+    color: var(--t-acc-ink) !important; background: var(--t-acc) !important; border-color: var(--t-acc) !important; box-shadow: 0 0 16px var(--t-glow); }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* NFL board: map the board's own tokens onto the shared theme, then restyle its components. */
+:root:root:root {
+  --bg: var(--t-bg); --card: var(--t-glass); --card2: rgba(26, 64, 73, .55); --line: rgba(94, 234, 212, .13); --tx: var(--t-fg); --mut: var(--t-muted);
+  --g: var(--t-good); --y: var(--t-warn); --r: var(--t-bad); --gbg: var(--t-good-bg); --ybg: var(--t-warn-bg); --rbg: var(--t-bad-bg); --acc: var(--t-acc);
+}
+body { font: 14px/1.4 var(--t-body); }
+header { max-width: 1120px; margin: 0 auto; padding: 22px 16px 14px; }
+header::before { content: "NFL betting intelligence"; display: block; font: 600 11px var(--t-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--t-acc); margin-bottom: 6px; }
+h1 { font: 800 38px/1.05 var(--t-head); letter-spacing: -.02em; }
+h1 .mut { font: 500 14px var(--t-mono); color: var(--t-muted); letter-spacing: 0; margin-left: 8px; }
+main { max-width: 1120px; }
+.card, .game, .top { background: var(--t-glass); border: 1px solid var(--t-line); border-radius: var(--t-r);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2); backdrop-filter: blur(10px) saturate(1.2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), 0 10px 28px rgba(0, 0, 0, .22); transition: border-color .2s, box-shadow .2s; }
+.game:hover, .card:hover { border-color: var(--t-line2); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05), 0 14px 34px rgba(0, 0, 0, .3); }
+.top { border-left-width: 4px; }
+.gh h3, .card h2, .dh, .top .p { font-family: var(--t-head); letter-spacing: -.01em; }
+.gh h3 { font-size: 19px; font-weight: 700; } .card h2 { font-size: 18px; } .dh { font-size: 20px; font-weight: 700; }
+.top .t, .dh3 { font: 600 11px var(--t-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--t-acc); }
+.proj { background: rgba(45, 212, 191, .07); border: 1px solid var(--t-line2); border-radius: var(--t-r2); padding: 8px 12px; box-shadow: inset 0 0 22px rgba(45, 212, 191, .06); }
+.m { background: rgba(26, 64, 73, .45); border-radius: var(--t-r2); } .m b { font-family: var(--t-head); font-size: 20px; }
+.pick { font-family: var(--t-head); font-size: 16px; }
+.badge, .bk { border-radius: 999px; padding: 2px 9px; }
+.bk.best { outline: 0; border-color: var(--t-acc); color: var(--t-acc2); box-shadow: 0 0 12px var(--t-glow); }
+.bar { background: rgba(148, 178, 180, .14); }
+select, label.tg, .seg button { background: var(--t-glass); border-color: var(--t-line); border-radius: var(--t-r2); color: var(--t-fg); }
+.seg button.on { background: rgba(45, 212, 191, .16); color: var(--t-acc2); border-color: var(--t-line2); }
+.tbl th { color: var(--t-muted); background: #0b1f25; font: 600 11px var(--t-mono); letter-spacing: .06em; text-transform: uppercase; }
+.tbl tr.ko td, .tbl tr.grp td { background: rgba(45, 212, 191, .08); }
+.tbl tbody tr:hover td { background: rgba(45, 212, 191, .05); }
+.card p, .card li { color: #c4dbd9; }
+code { background: rgba(26, 64, 73, .6); }
+.note { border-radius: var(--t-r2); }
+
+</style>
+<script>
+(function(){try{document.documentElement.setAttribute('data-sport','nfl');document.body.classList.add('t-shell');var n=document.getElementById('tabs');if(n){n.classList.add('t-nav');n.setAttribute('data-brand','NFL Board');}}catch(e){}})();
+/* Shared board background: soft turquoise glows (CSS) plus sport pieces drifting slowly upward on a canvas.
+   Sport comes from <html data-sport="nba|nfl|nhl">. Static frame when the viewer prefers reduced motion; pauses when the tab is hidden. */
+(function () {
+  try {
+    var sport = (document.documentElement.getAttribute("data-sport") || "nba").toLowerCase();
+    var cv = document.createElement("canvas"); cv.id = "tbg"; cv.setAttribute("aria-hidden", "true");
+    document.body.insertBefore(cv, document.body.firstChild);
+    var ctx = cv.getContext("2d"); if (!ctx) return;
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var W = 0, H = 0, dpr = 1, P = [];
+    function rnd(a, b) { return a + Math.random() * (b - a); }
+    function make(y) { var s = rnd(22, 78); return { x: rnd(0, W), y: y == null ? rnd(0, H) : y, s: s, a: rnd(0, 6.28), va: rnd(-.0035, .0035),
+      vy: -(0.06 + s / 260) * rnd(.7, 1.3), vx: rnd(-.05, .05), o: rnd(.16, .32) * (s > 55 ? 1 : .85), ph: rnd(0, 6.28) }; }
+    function size() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2); W = window.innerWidth; H = window.innerHeight;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      var n = W < 700 ? 7 : W < 1200 ? 11 : 15; while (P.length < n) P.push(make()); P.length = n;
+    }
+    function ball(r) { // basketball: circle, two straight seams, two curved seams
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.283); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-r, 0); ctx.lineTo(r, 0); ctx.moveTo(0, -r); ctx.lineTo(0, r); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(-r * 1.05, 0, r * .55, r * .86, 0, -1.2, 1.2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(r * 1.05, 0, r * .55, r * .86, 0, 1.94, 4.34); ctx.stroke();
+    }
+    function football(r) { // pointed oval plus laces
+      ctx.beginPath(); ctx.moveTo(-r, 0); ctx.quadraticCurveTo(0, -r * 1.05, r, 0); ctx.quadraticCurveTo(0, r * 1.05, -r, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-r * .32, 0); ctx.lineTo(r * .32, 0);
+      for (var i = -2; i <= 2; i++) { ctx.moveTo(i * r * .14, -r * .1); ctx.lineTo(i * r * .14, r * .1); } ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-r * .72, -r * .26); ctx.lineTo(-r * .72, r * .26); ctx.moveTo(r * .72, -r * .26); ctx.lineTo(r * .72, r * .26); ctx.stroke();
+    }
+    function puck(r) { // puck seen at an angle: top ellipse, side walls, lower rim
+      var h = r * .34, e = r * .42;
+      ctx.beginPath(); ctx.ellipse(0, -h / 2, r, e, 0, 0, 6.283); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-r, -h / 2); ctx.lineTo(-r, h / 2); ctx.moveTo(r, -h / 2); ctx.lineTo(r, h / 2); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, h / 2, r, e, 0, 0, 3.1416); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(0, -h / 2, r * .55, e * .55, 0, 0, 6.283); ctx.globalAlpha *= .6; ctx.stroke();
+    }
+    var draw = sport === "nfl" ? football : sport === "nhl" ? puck : ball;
+    function frame(t) {
+      ctx.clearRect(0, 0, W, H);
+      for (var i = 0; i < P.length; i++) {
+        var p = P[i];
+        if (!reduce) { p.y += p.vy; p.x += p.vx + Math.sin(t / 4000 + p.ph) * .08; p.a += p.va; }
+        if (p.y < -p.s * 1.4) { P[i] = p = make(H + p.s); p.x = rnd(0, W); }
+        if (p.x < -p.s * 1.4) p.x = W + p.s; if (p.x > W + p.s * 1.4) p.x = -p.s;
+        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+        ctx.globalAlpha = p.o; ctx.strokeStyle = "#5eead4"; ctx.lineWidth = Math.max(1, p.s / 34);
+        ctx.shadowColor = "rgba(45,212,191,.55)"; ctx.shadowBlur = p.s / 5;
+        draw(p.s / 2); ctx.restore();
+      }
+    }
+    var last = 0, run = !reduce;
+    function loop(t) { if (!run) return; if (t - last > 33) { frame(t); last = t; } requestAnimationFrame(loop); }
+    size(); frame(0);
+    window.addEventListener("resize", function () { size(); frame(performance.now()); });
+    document.addEventListener("visibilitychange", function () { if (reduce) return; run = !document.hidden; if (run) requestAnimationFrame(loop); });
+    if (run) requestAnimationFrame(loop);
+  } catch (e) { /* background is decoration only */ }
+})();
+
+</script>
+<!-- theme:end -->
 </body>
 </html>

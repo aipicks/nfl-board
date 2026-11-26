@@ -38,6 +38,30 @@ def _clean(o):
     return o
 
 
+def _prop_model(con):
+    """Prop model v2, refit on every graded prop logged before kickoff (model/prop_calib.py)."""
+    try:
+        from adapters import nflverse as nv
+        from model import prop_calib as PC
+        st = nv.get("stats", config.SEASON)
+        tr = PC.training_set(con, st[st.season_type == "REG"])
+        print(f"prop model v2 fitted on {len(tr)} graded props")
+        return PC.fit(tr) if len(tr) >= 300 else None
+    except Exception as e:
+        print("prop model v2 failed:", e)
+        return None
+
+
+def _card_hist():
+    """Best Picks record: past weeks re-graded with the card rules (regrade_card.py); never blocks the build."""
+    try:
+        import regrade_card
+        return regrade_card.main(quiet=True)
+    except Exception as e:
+        print("card re-grade failed:", e)
+        return None
+
+
 def payload(log=True):
     con = db.connect()
     ctx, res = board_data.run(con)
@@ -65,6 +89,7 @@ def payload(log=True):
     kos = {g["id"]: g["kickoff"] for g in games}
     te = te_board.build(tds, deeps, games, con)
     logged = tracking.log_predictions(con, res, props, tds, best=bp, kickoffs=kos) if log else None
+    card = best_props.card(bp, games, tds, props, deeps, _prop_model(con))   # Best Picks card needs every option, so before the pop below
     for p in props:                                   # the per-option lists were only needed for the Best Props selection
         p.pop("opts", None)
     allbest = [(g["id"], m, v["best"]) for g in games for m, v in g["markets"].items() if v["best"]]
@@ -72,8 +97,8 @@ def payload(log=True):
     first = min(games, key=lambda g: g["kickoff"])["id"] if games else None
     data = {"built_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "week": ctx["week"], "season": config.SEASON,
             "ages": ctx["ages"], "games": games, "deeps": deeps, "deep_default": first, "top": {"game": top[0], "market": top[1]} if top else None,
-            "td": tds, "props": props, "te": te, "bestprops": {"games": bp, "watch": watch, "mnf": mnf, "range": [best_props.PRICE_LO, best_props.PRICE_HI]},
-            "results": tracking.results(con), "logged": logged, "learning": learning.summary(),
+            "td": tds, "props": props, "te": te, "bestprops": {"games": bp, "watch": watch, "mnf": mnf, "range": [best_props.PRICE_LO, best_props.PRICE_HI]}, "card": card,
+            "results": tracking.results(con), "card_hist": _card_hist(), "logged": logged, "learning": learning.summary(),
             "cfg": {"bet": config.BET_EV, "lean": config.LEAN_EV, "w": config.MODEL_WEIGHT, "trust": config.MODEL_TRUST, "hfa": config.HFA,
                     "half_life": config.RATING_HALF_LIFE, "ridge": config.RATING_RIDGE, "play": config.PLAY_PROB,
                     "cap_s": config.PUBLIC_CAP_SPREAD, "cap_t": config.PUBLIC_CAP_TOTAL, "prop_trust": config.PROP_TRUST, "td_hold": config.TD_ASSUMED_HOLD,

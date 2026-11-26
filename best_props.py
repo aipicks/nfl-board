@@ -261,3 +261,171 @@ def watchlist(props, tds, deeps, games) -> list[dict]:
                     "usage": usage, "markets": sorted(markets, key=lambda m: -m["p_final"]),
                     "td": None if not tdr else {"p_model": tdr[0]["p_model"], "p_market": tdr[0]["p_market"], "best_price": tdr[0]["best_price"], "best_book": tdr[0]["best_book"], "p_final": tdr[0]["p_final"]}})
     return out
+
+
+# ---------------------------------------------------------------------------------------------------------------------------------
+# Best Picks card (2026-11-25, user's rules): a short final card instead of every candidate.
+#   Sunday main slate (Sunday games before 7 PM ET): 8-12 player props (max 2 per game), 3 spreads, 2 totals.
+#   Standalone / primetime games (any non-Sunday game, Sunday night, Monday night): per game 2 player props + 1 game pick
+#   (spread or total, whichever has the better edge) + optionally 1 anytime TD when there is real value.
+#   Never padded: if fewer picks pass, fewer are shown.
+YARD_MKTS = {"pass_yds", "rush_yds", "rec_yds", "rush_rec_yds", "pass_rush_yds"}
+MIN_OVER_LINE = {"receptions": 2.5, "rec_yds": 25.5, "rush_yds": 30.5, "rush_att": 10.5}   # no depth-player tiny lines
+CARD_P_MIN, CARD_P_MAX, CARD_FIRM = 0.55, 0.72, 0.60
+TD_GATE = {"snap": 50, "rb_touch": 8, "rec_tgt": 4, "qb_car": 4, "rz": 0.8, "gl": 0.3, "max_price": 450, "edge": 0.03}
+
+
+def _implied(price):
+    return 100 / (price + 100) if price > 0 else -price / (-price + 100)
+
+
+def _hits(p):
+    s, ln = p.get("series") or [], p.get("line")
+    if ln is None:
+        return []
+    return [(v > ln) if p["side"] == "over" else (v < ln) for v in s]
+
+
+def _prop_ok(p):
+    if p["kind"] != "prop" or p.get("relaxed") or p.get("limited") or p["status"] != "healthy" or (p.get("n26") or 0) < 5:
+        return False
+    if not CARD_P_MIN <= p["p_final"] <= CARD_P_MAX:
+        return False
+    if p["price"] < (-115 if p["market"] in YARD_MKTS else -125):
+        return False
+    if p["side"] == "over" and p["line"] is not None and p["line"] < MIN_OVER_LINE.get(p["market"], 0):
+        return False
+    h = _hits(p)
+    return len(h) >= 5 and (sum(h[-5:]) >= 4 or sum(h) / len(h) >= 0.70)
+
+
+def _label_prop(p):
+    h = _hits(p)
+    return "FIRM" if p["p_final"] >= CARD_FIRM and sum(h[-5:]) >= 4 else "LEAN"
+
+
+def td_role(t):
+    g = TD_GATE
+    if t["best_price"] > g["max_price"] or t.get("snap_pct") is None or t["snap_pct"] < g["snap"] or t["status"] != "healthy" or t["limited"]:
+        return False
+    if t["pos"] == "RB":
+        vol = t["car_pg"] + t["tgt_pg"] >= g["rb_touch"]
+    elif t["pos"] == "QB":
+        vol = t["car_pg"] >= g["qb_car"]
+    else:
+        vol = t["tgt_pg"] >= g["rec_tgt"]
+    return vol and (t["rz_pg"] >= g["rz"] or t["gl_pg"] >= g["gl"])
+
+
+def _slot(g):
+    """'sunday' for the Sunday day slate, else 'standalone' (Thu/Fri/Sat/Mon/holiday games and Sunday night)."""
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+    ko = datetime.strptime(g["kickoff"][:16], "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc).astimezone(ZoneInfo("America/New_York"))
+    return "sunday" if ko.weekday() == 6 and ko.hour < 19 else "standalone"
+
+
+def _game_pick(g, mk):
+    for p in _game_bets(g):
+        if p["market"] != mk:
+            continue
+        b = g["markets"][mk]["best"]
+        if b["ev"] < config.LEAN_EV:
+            return None
+        q = dict(p)
+        q["label_card"] = "FIRM" if b["ev"] >= config.BET_EV else "LEAN"
+        q["ev"] = b["ev"]
+        if mk == "spread":
+            agree = (g["margin"] + b["line"] > 0) == (b["side"] == "home")    # stored line is the home team's
+        else:
+            agree = (g["total"] > b["line"]) == (b["side"] == "over")
+        if not agree:
+            q["label_card"] = "LEAN"
+            q["risk"] = q["risk"] + ["Our raw projection points the other way; the edge comes from the price, so it is a lean at best."]
+        return q
+    return None
+
+
+CARD_PM_MIN, CARD_PM_MAX, CARD_MKT_MIN = 0.56, 0.72, 0.45   # model's own chance band; market must not strongly oppose
+
+
+def _score(p):
+    h = _hits(p)
+    return 0.6 * p["p_model"] + 0.4 * (sum(h) / len(h) if h else 0)
+
+
+def _card_props(props, deeps, gmap, model):
+    """Prop model v2 (model/prop_calib.py): best side per player where our chance beats the price by EDGE_MIN+, ranked by edge."""
+    from model import prop_calib as PC
+    import statistics
+    best = {}
+    for r in props:
+        if r["status"] != "healthy" or r["limited"] or (r.get("n26") or 0) < 5 or r["game_id"] not in gmap or model is None:
+            continue
+        opts = r.get("opts") or []
+        mk = {}
+        for o in opts:                                    # de-vigged market P(over) at each line, averaged over books
+            mk.setdefault(o["line"], []).append(o["p_market"] if o["side"] == "over" else 1 - o["p_market"])
+        med8 = statistics.median(r["series"][-8:]) if r.get("series") else None
+        if med8 is None:
+            continue
+        for o in opts:
+            yard = r["market"] in YARD_MKTS
+            if not (-115 if yard else -125) <= o["price"] <= 140 or o["line"] < MIN_OVER_LINE.get(r["market"], 0):
+                continue
+            po = PC.p_over(model, r["market"], sum(mk[o["line"]]) / len(mk[o["line"]]), med8, o["line"])
+            pside = po if o["side"] == "over" else 1 - po
+            edge = pside - PC.implied(o["price"])
+            if edge < PC.EDGE_MIN:
+                continue
+            p = _pick_from_prop(r, o)
+            p["p_new"], p["edge"] = round(pside, 4), round(edge, 4)
+            k = r["player_id"]
+            if k not in best or edge > best[k]["edge"]:
+                best[k] = p
+    out = {}
+    for p in best.values():
+        g = gmap[p["game_id"]]
+        p["why"], p["risk"] = _why(p, deeps.get(p["game_id"], {}), g)
+        h = _hits(p)
+        p["hit_txt"] = f"{sum(h)} of {len(h)} this season" if h else "no history"
+        p["label_card"] = "FIRM" if p["edge"] >= PC.EDGE_FIRM else "LEAN"
+        p["conf"], p["conf_cls"] = _conf(p["p_new"])
+        out.setdefault(p["game_id"], []).append(p)
+    for v in out.values():
+        v.sort(key=lambda p: -p["edge"])
+    return out
+
+
+def card(bp, games, tds, props=None, deeps=None, model=None) -> dict:
+    gmap = {g["id"]: g for g in games}
+    props_by_game = _card_props(props or [], deeps or {}, gmap, model)
+    sun_ids = [g["id"] for g in games if _slot(g) == "sunday"]
+    out = {"sunday": None, "standalone": []}
+    if sun_ids:
+        pool, per = [], {}
+        for p in sorted([p for gid in sun_ids for p in props_by_game.get(gid, [])], key=lambda p: -p["edge"]):
+            if per.get(p["game_id"], 0) >= 2 or any(q["player_id"] == p["player_id"] for q in pool):
+                continue
+            pool.append(p)
+            per[p["game_id"]] = per.get(p["game_id"], 0) + 1
+            if len(pool) == 12:
+                break
+        spreads = sorted(filter(None, (_game_pick(gmap[i], "spread") for i in sun_ids)), key=lambda p: -p["ev"])[:3]
+        totals = sorted(filter(None, (_game_pick(gmap[i], "total") for i in sun_ids)), key=lambda p: -p["ev"])[:2]
+        for p in pool + spreads + totals:
+            p["game"] = f"{gmap[p['game_id']]['away']} @ {gmap[p['game_id']]['home']}"
+        out["sunday"] = {"n_games": len(sun_ids), "props": pool, "spreads": spreads, "totals": totals}
+    for g in sorted((g for g in games if _slot(g) == "standalone"), key=lambda g: g["kickoff"]):
+        ps = props_by_game.get(g["id"], [])[:2]
+        gp = [p for p in (_game_pick(g, "spread"), _game_pick(g, "total")) if p]
+        gp = max(gp, key=lambda p: p["ev"]) if gp else None
+        td = None
+        best = sorted((t for t in tds if t["game_id"] == g["id"] and td_role(t)), key=lambda t: -(t["p_final"] - _implied(t["best_price"])))
+        if best and best[0]["p_final"] - _implied(best[0]["best_price"]) >= TD_GATE["edge"]:
+            t = best[0]
+            td = {"player": t["player"], "pos": t["pos"], "team": t["team"], "opp": t["opp"], "book": t["best_book"], "price": t["best_price"], "p_final": t["p_final"],
+                  "p_market": t["p_market"], "implied": round(_implied(t["best_price"]), 4), "snap_pct": t["snap_pct"], "rz_pg": t["rz_pg"], "gl_pg": t["gl_pg"],
+                  "td_games": t["td_games"], "games": t["games"], "label_card": "LEAN"}
+        out["standalone"].append({"game_id": g["id"], "away": g["away"], "home": g["home"], "kickoff": g["kickoff"], "props": ps, "game_pick": gp, "td": td})
+    return out

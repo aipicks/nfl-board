@@ -56,3 +56,12 @@ User asked for the top three tight ends most likely to score tomorrow against de
 - Weather: nflweather posts no numbers for some outdoor games (CIN-ATL week 9 neutral-site game, 'Read More'). Outdoor gaps now get a labelled mild/calm placeholder instead of failing validation. The deep dive for a neutral-site game still looks up the home team's city, so its weather there is not the real venue's.
 
 - Spread option lines are stored from the HOME team's view; an away pick's real line is the negative (board_template.html already does this). best_props._game_bets printed the home sign for away picks; fixed with a test. Any new code that prints a spread pick must flip the sign for away.
+
+## 2026-11-25 Prop model v2 (user: "rebuild prop model")
+- v1 (volume x efficiency) had no skill: 12,320 graded props hit ~48-49% at every model confidence; log-loss 0.737 vs market 0.690.
+- Player history (recent mean/median/hit rate) is already in the lines. The usable signal is a market-wide lean: overs 47.4% vs ~50%
+  priced; rush_yds / rush_att overs ~43%; pass_int overs ~56%.
+- v2 = model/prop_calib.py: logistic on logit(de-vigged market P(over)) + (median last 8 - line)/line + market-type terms, refit on
+  every build from graded pre-kickoff props. Best Picks props need 4+ pts of edge vs the price (FIRM 6+). Walk-forward Best Picks
+  replay: props 49-36, +11.4u. Small sample; the lean can vanish if books adjust. Re-check after each week settles.
+- research/prop_dataset.py, prop_signals.py, prop_unders.py hold the analysis.

@@ -17,3 +17,7 @@
 - 2026-11-19: MODEL_TRUST.total 0.1327 -> 0.1936 (238 graded picks; total: outcome-vs-market on model-vs-market slope +0.25)
 - 2026-11-20: MODEL_TRUST.total 0.1936 -> 0.3602 (240 graded picks; total: outcome-vs-market on model-vs-market slope +0.53)
 - 2026-11-22: MODEL_TRUST.total 0.3602 -> 0.4435 (240 graded picks; total: outcome-vs-market on model-vs-market slope +0.53)
+- 2026-11-23: MODEL_TRUST.total 0.4435 -> 0.0845 (288 graded picks; total: outcome-vs-market on model-vs-market slope -0.27)
+- 2026-11-23: TD_LAMBDA_SCALE 1.2 -> 1.1788 (1787 graded picks; anytime TD: predicted 0.274 vs actual 0.264)
+- 2026-11-25: MODEL_TRUST.total 0.0845 -> 0.0976 (293 graded picks; total: outcome-vs-market on model-vs-market slope +0.11)
+- 2026-11-25: TD_LAMBDA_SCALE 1.1788 -> 1.1489 (1827 graded picks; anytime TD: predicted 0.274 vs actual 0.260)
